@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cepex-postgres
+    environment:
+      POSTGRES_USER: cepex
+      POSTGRES_PASSWORD: cepex
+      POSTGRES_DB: cepex
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - '5432:5432'
+
+  backend:
+    build:
+      context: ./backend
+    container_name: cepex-backend
+    environment:
+      DATABASE_URL: postgres://cepex:cepex@postgres:5432/cepex
+      JWT_SECRET: change-me
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3
+      OLLAMA_EMBED_MODEL: nomic-embed-text
+      PROMPTS_DIR: /app/prompts
+      PORT: 3001
+    depends_on:
+      - postgres
+      - ollama
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./prompts:/app/prompts:ro
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cepex-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - '11434:11434'
+
+  redis:
+    image: redis:7-alpine
+    container_name: cepex-redis
+    ports:
+      - '6379:6379'
+
+volumes:
+  postgres_data:
+  ollama_data:

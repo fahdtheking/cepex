@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CEPEX Institutional B2B Facilitation Backend
 
-## Getting Started
+This repository contains the backend, database schema, and local AI integration for the CEPEX institutional B2B facilitation platform.
+The UI is provided separately and must map directly to the API routes described below.
 
-First, run the development server:
+## Architecture
+- **Backend**: NestJS (TypeScript)
+- **Database**: PostgreSQL + pgvector
+- **AI**: Local Ollama (no external AI calls)
+- **Deployment**: Docker + Docker Compose
+- **Governance**: JWT auth, RBAC, immutable audit logs
 
+## Services
+- `postgres`: PostgreSQL with pgvector and database-first schema initialization.
+- `backend`: NestJS API service.
+- `ollama`: Local LLM used for embeddings and negotiation assistance.
+- `redis`: Optional cache (reserved for future use).
+
+## Quick Start
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
+These are configured in `docker-compose.yml` and can be overridden as needed:
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `OLLAMA_EMBED_MODEL`
+- `PROMPTS_DIR`
+- `PORT`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Schema
+Schema is defined in `db/schema.sql` and is applied on container startup. It includes:
+- `users`
+- `organizations`
+- `products_services`
+- `product_service_embeddings`
+- `negotiations`
+- `negotiation_messages`
+- `ai_messages`
+- `ai_summaries`
+- `approvals`
+- `audit_logs`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API Routes
+### Authentication & RBAC
+All routes require JWT auth. Roles:
+- `importer`
+- `exporter`
+- `cepex_agent`
+- `admin`
 
-## Learn More
+### Importer (Semantic Search)
+- `POST /search/semantic`
 
-To learn more about Next.js, take a look at the following resources:
+### Exporter (Product/Service CRUD)
+- `POST /products-services`
+- `PATCH /products-services/:id`
+- `GET /products-services/organization/:organizationId`
+- `DELETE /products-services/:id`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Negotiations
+- `POST /negotiations`
+- `POST /negotiations/:id/messages`
+- `PATCH /negotiations/:id/status`
+- `GET /negotiations/:id`
+- `GET /negotiations/organization/:organizationId`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### AI Mediation (Ollama)
+- `POST /ai/negotiations/:id/message`
+- `POST /ai/negotiations/:id/summary`
 
-## Deploy on Vercel
+### CEPEX Validation Workflows
+- `GET /approvals`
+- `PATCH /approvals/:id`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Admin Control Panel
+- `GET /admin/dashboard`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Prompt Templates
+AI prompts are stored in `prompts/` and versioned in code. All AI outputs are stored in `ai_messages` or `ai_summaries` with prompt metadata.
+
+## Notes
+- No payments, checkout, or pricing engine.
+- No external AI calls; Ollama is the only LLM runtime.
+- All actions are auditable through `audit_logs`.
